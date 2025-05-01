@@ -195,7 +195,7 @@ impl DownloadTypes {
         match self {
             Self::Single { length } => BTypes::Integer(length as isize),
             Self::Multiple { files } => {
-                BTypes::List({ files.iter().map(|v| v.clone().bencode()).collect() })
+                BTypes::List(files.iter().map(|v| v.clone().bencode()).collect())
             }
         }
     }
@@ -217,7 +217,7 @@ impl DownloadTypes {
                 return Err(DataParseError::BadKey(
                     "info.length and info.files".to_owned(),
                     None,
-                ))
+                ));
             }
             (None, Some(f)) => {
                 let BTypes::List(list) = f else {
@@ -244,7 +244,7 @@ impl DownloadTypes {
                     Some(l),
                     "files".to_owned(),
                     Some(f),
-                ))
+                ));
             }
         };
 
