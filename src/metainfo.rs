@@ -4,7 +4,7 @@ use crate::encoding::{BTypes::*, *};
 
 pub trait Bencodeable {
     fn bencode(self) -> BTypes;
-    fn dbencode(input: BTypes) -> Result<Self, DataParseError>
+    fn bdecode(input: BTypes) -> Result<Self, DataParseError>
     where
         Self: Sized;
 }
@@ -46,73 +46,34 @@ impl std::fmt::Display for DataParseError {
 
 /// Metainfo files (also known as .torrent files) are bencoded dictionaries
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Metainfo {
+pub struct Meta {
     /// The URL of the tracker. All strings in a .torrent file that contains text must be UTF-8 encoded.
     /// Unofficially seems there can be multiple announce keys
-    announce: String,
+    pub announce: String,
 
-    //info: MetainfoInfo,
-    /// Part of the `info` key. The `name` key maps to a UTF-8 encoded string which is the suggested name to save the file (or directory) as.
-    /// It is purely advisory.
-    /// In the single file case, the name key is the name of a file, in the muliple file case, it's the name of a directory.
-    name: String,
-
-    /// Part of the `info` key. `piece_length` maps to the number of bytes in each piece the file is split into.
-    /// For the purposes of transfer, files are split into fixed-size pieces which are all the same length except for possibly the last one which may be truncated.
-    /// `piece_length` is almost always a power of two, most commonly `2^18 = 256 K` (BitTorrent prior to version 3.2 uses `2 20 = 1 M` as default).
-    piece_length: usize,
-
-    /// Part of the `info` key. `pieces` maps to a string whose length is a multiple of `20`. It is to be subdivided into strings of length `20`,
-    /// each of which is the SHA1 hash of the piece at the corresponding index.
-    pieces: Vec<u8>,
-
-    /// Part of the `info` key. There is also a key length or a key files, but not both or neither.
-    /// If length is present then the download represents a single file, otherwise it represents a set of files which go in a directory structure.
-    download_type: DownloadTypes,
+    /// This maps to a dictionary, with keys described below.
+    pub info: MetaInfo,
 
     /// Any unofficial leftover keys that might be needed for a hash but not functionality
-    leftovers: BTypes,
+    pub leftovers: BTreeMap<String, BTypes>,
 }
 
-impl Bencodeable for Metainfo {
+impl Bencodeable for Meta {
     fn bencode(self) -> BTypes {
         return BTypes::Dict({
             let mut dict: BTreeMap<String, BTypes> = BTreeMap::new();
 
             dict.insert("announce".to_owned(), TextString(self.announce));
 
-            dict.insert(
-                "info".to_owned(),
-                Dict({
-                    let mut info: BTreeMap<String, BTypes> = BTreeMap::new();
+            dict.insert("info".to_owned(), self.info.bencode());
 
-                    info.insert("name".to_owned(), TextString(self.name));
-
-                    info.insert(
-                        "piece length".to_owned(),
-                        Integer(self.piece_length as isize),
-                    );
-
-                    info.insert("pieces".to_owned(), ByteString(self.pieces));
-
-                    match self.download_type {
-                        DownloadTypes::Single { .. } => {
-                            info.insert("length".to_owned(), self.download_type.bencode());
-                        }
-                        DownloadTypes::Multiple { .. } => {
-                            info.insert("files".to_owned(), self.download_type.bencode());
-                        }
-                    }
-
-                    info
-                }),
-            );
+            dict.extend(self.leftovers); // untested
 
             dict
         });
     }
 
-    fn dbencode(input: BTypes) -> Result<Self, DataParseError>
+    fn bdecode(input: BTypes) -> Result<Self, DataParseError>
     where
         Self: Sized,
     {
@@ -127,24 +88,95 @@ impl Bencodeable for Metainfo {
             ));
         }; // IMRPOVE: Macro to do this
 
-        let Some(BTypes::Dict(mut info)) = dict.remove("info") else {
+        let Some(info) = dict.remove("info") else {
             return Err(DataParseError::BadKey(
                 "info".to_owned(),
                 dict.get("info").cloned(),
             ));
         };
 
-        let Some(BTypes::TextString(name)) = info.remove("name") else {
+        let info = MetaInfo::bdecode(info)?;
+
+        Ok(Self {
+            announce,
+            info,
+            leftovers: dict,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaInfo {
+    /// The `name` key maps to a UTF-8 encoded string which is the suggested name to save the file (or directory) as.
+    /// It is purely advisory.
+    /// In the single file case, the name key is the name of a file, in the muliple file case, it's the name of a directory.
+    pub name: String,
+
+    /// `piece_length` maps to the number of bytes in each piece the file is split into.
+    /// For the purposes of transfer, files are split into fixed-size pieces which are all the same length except for possibly the last one which may be truncated.
+    /// `piece_length` is almost always a power of two, most commonly `2^18 = 256 K` (BitTorrent prior to version 3.2 uses `2 20 = 1 M` as default).
+    pub piece_length: usize,
+
+    /// `pieces` maps to a string whose length is a multiple of `20`. It is to be subdivided into strings of length `20`,
+    /// each of which is the SHA1 hash of the piece at the corresponding index.
+    pub pieces: Vec<u8>,
+
+    /// There is also a key length or a key files, but not both or neither.
+    /// If length is present then the download represents a single file, otherwise it represents a set of files which go in a directory structure.
+    pub files: DownloadTypes,
+
+    /// Any unofficial leftover keys that might be needed for a hash but not functionality
+    pub leftovers: BTreeMap<String, BTypes>,
+}
+
+impl Bencodeable for MetaInfo {
+    fn bencode(self) -> BTypes {
+        BTypes::Dict({
+            let mut dict = BTreeMap::new();
+
+            dict.insert("name".to_owned(), TextString(self.name));
+
+            dict.insert(
+                "piece length".to_owned(),
+                Integer(self.piece_length as isize),
+            );
+
+            dict.insert("pieces".to_owned(), ByteString(self.pieces));
+
+            match self.files {
+                DownloadTypes::Single { .. } => {
+                    dict.insert("length".to_owned(), self.files.bencode());
+                }
+                DownloadTypes::Multiple { .. } => {
+                    dict.insert("files".to_owned(), self.files.bencode());
+                }
+            };
+
+            dict.extend(self.leftovers);
+
+            dict
+        })
+    }
+
+    fn bdecode(input: BTypes) -> Result<Self, DataParseError>
+    where
+        Self: Sized,
+    {
+        let BTypes::Dict(mut dict) = input else {
+            return Err(DataParseError::ExpectedDict);
+        };
+
+        let Some(BTypes::TextString(name)) = dict.remove("name") else {
             return Err(DataParseError::BadKey(
                 "info.name".to_owned(),
-                info.get("name").cloned(),
+                dict.get("name").cloned(),
             ));
         };
 
-        let Some(BTypes::Integer(piece_length)) = info.remove("piece length") else {
+        let Some(BTypes::Integer(piece_length)) = dict.remove("piece length") else {
             return Err(DataParseError::BadKey(
                 "info.piece length".to_owned(),
-                info.get("piece length").cloned(),
+                dict.get("piece length").cloned(),
             ));
         };
 
@@ -156,22 +188,25 @@ impl Bencodeable for Metainfo {
         //    return Err(DataParseError::BadPieceLength(piece_length));
         //}
 
-        let Some(BTypes::ByteString(pieces)) = info.remove("pieces") else {
+        let Some(BTypes::ByteString(pieces)) = dict.remove("pieces") else {
             return Err(DataParseError::BadKey(
                 "info.pieces".to_owned(),
-                info.get("pieces").cloned(),
+                dict.get("pieces").cloned(),
             ));
         };
 
-        let (download_types, leftover_info) = DownloadTypes::dbencode(BTypes::Dict(info))?;
+        let (files, leftover_info) = DownloadTypes::dbencode(BTypes::Dict(dict))?;
+
+        let BTypes::Dict(leftovers) = leftover_info else {
+            return Err(DataParseError::ExpectedDict);
+        };
 
         Ok(Self {
-            announce,
             name,
             piece_length: piece_length as usize,
             pieces,
-            download_type: download_types,
-            leftovers: leftover_info,
+            files,
+            leftovers,
         })
     }
 }
@@ -330,46 +365,47 @@ mod tests {
 
     #[test]
     fn single() {
-        let test_value = Metainfo {
+        let test_value = Meta {
             announce: "www.example.com".to_string(),
-            name: "The test file".to_string(),
-            piece_length: 4,
-            pieces: vec![0x12, 0x43, 0x76, 0xaf],
-            download_type: Single { length: 80 },
-            leftovers: BTypes::Dict(BTreeMap::new()),
+            info: MetaInfo {
+                name: "The test file".to_string(),
+                piece_length: 4,
+                pieces: vec![0x12, 0x43, 0x76, 0xaf],
+                files: Single { length: 80 },
+                leftovers: BTreeMap::new(),
+            },
+            leftovers: BTreeMap::new(),
         };
 
-        assert_eq!(
-            Ok(test_value.clone()),
-            Metainfo::dbencode(test_value.bencode())
-        );
+        assert_eq!(Ok(test_value.clone()), Meta::bdecode(test_value.bencode()));
     }
 
     #[test]
     fn multi() {
-        let test_value = Metainfo {
+        let test_value = Meta {
             announce: "www.example.com".to_string(),
-            name: "The test file".to_string(),
-            piece_length: 4,
-            pieces: vec![0x12, 0x43, 0x76, 0xaf],
-            download_type: Multiple {
-                files: vec![
-                    MultipleFileInner {
-                        length: 15,
-                        path: vec!["foo".to_string(), "bar".to_string(), "baz".to_string()],
-                    },
-                    MultipleFileInner {
-                        length: 24,
-                        path: vec!["best file ever TM".to_string()],
-                    },
-                ],
+            info: MetaInfo {
+                name: "The test file".to_string(),
+                piece_length: 4,
+                pieces: vec![0x12, 0x43, 0x76, 0xaf],
+                files: Multiple {
+                    files: vec![
+                        MultipleFileInner {
+                            length: 15,
+                            path: vec!["foo".to_string(), "bar".to_string(), "baz".to_string()],
+                        },
+                        MultipleFileInner {
+                            length: 24,
+                            path: vec!["best file ever TM".to_string()],
+                        },
+                    ],
+                },
+
+                leftovers: BTreeMap::new(),
             },
-            leftovers: BTypes::Dict(BTreeMap::new()),
+            leftovers: BTreeMap::new(),
         };
 
-        assert_eq!(
-            Ok(test_value.clone()),
-            Metainfo::dbencode(test_value.bencode())
-        );
+        assert_eq!(Ok(test_value.clone()), Meta::bdecode(test_value.bencode()));
     }
 }
