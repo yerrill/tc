@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-
+use sha1::{Sha1, Digest};
 use crate::encoding::{BTypes::*, *};
 
 pub trait Bencodeable {
@@ -56,6 +56,16 @@ pub struct Meta {
 
     /// Any unofficial leftover keys that might be needed for a hash but not functionality
     pub leftovers: BTreeMap<String, BTypes>,
+}
+
+impl Meta {
+    pub fn info_hash(&self) -> [u8; 20] {
+        let mut hasher = Sha1::new();
+        let info = self.info.clone();
+
+        hasher.update(info.bencode().bencode());
+        hasher.finalize().into()
+    }
 }
 
 impl Bencodeable for Meta {
