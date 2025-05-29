@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
-use sha1::{Sha1, Digest};
 use crate::encoding::{BTypes::*, *};
+use sha1::{Digest, Sha1};
+use std::collections::BTreeMap;
 
 pub trait Bencodeable {
     fn bencode(self) -> BTypes;

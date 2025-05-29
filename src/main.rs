@@ -23,7 +23,11 @@ fn main() {
 
     //println!("{:#?}", info);
 
-    let infohash = info.info_hash().iter().map(|b| format!("%{:X}", b)).collect::<String>();
+    let infohash = info
+        .info_hash()
+        .iter()
+        .map(|b| format!("%{:X}", b))
+        .collect::<String>();
 
     println!("{}", infohash);
 }
