@@ -1,3 +1,4 @@
+use crate::encoding::{BTypes, BencodingError};
 use crate::metainfo::*;
 use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 use rand::{self, Rng};
@@ -87,25 +88,10 @@ pub fn generate_peer_id() -> String {
     chars.iter().collect()
 }
 
-// For consistency, percent-encoded octets in the ranges of ALPHA (%41-%5A and %61-%7A),
-// DIGIT (%30-%39), hyphen (%2D), period (%2E), underscore (%5F), or tilde (%7E) should
-// not be created by URI producers and, when found in a URI, should be decoded to their
-// corresponding unreserved characters by URI normalizers.
-fn url_encode(data: &[u8]) -> String {
-    const RESERVED: [char; 18] = [
-        ':', '/', '?', '#', '[', ']', '@', '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=',
-    ];
+fn decode_response(response: String) -> Result<(), BencodingError> {
+    let res = BTypes::bdecode(&response.into_bytes())?;
 
-    let mut output = String::new();
+    let (peers, res) = res.keyed_dict("peers")?;
 
-    for ch in data {
-        dbg!(*ch as char);
-        if RESERVED.contains(&(*ch as char)) {
-            output.push_str(format!("%{:02X}", *ch).as_str());
-        } else {
-            output.push(*ch as char);
-        }
-    }
-
-    output
+    Ok(())
 }

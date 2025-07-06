@@ -15,6 +15,12 @@ pub enum BencodingError {
     OutOfBounds,
     MissingInputType(Vec<u8>),
     CouldNotParseUTF8,
+    KeyNotFound(String),
+    NotDict,
+    NotList,
+    NotInt,
+    NotByteStr,
+    NotTextStr,
 }
 
 impl std::fmt::Display for BencodingError {
@@ -36,6 +42,12 @@ impl std::fmt::Display for BencodingError {
                 write!(f, "Decoding input had no type character {v:?}")
             }
             BencodingError::CouldNotParseUTF8 => write!(f, "Could not parse UTF8 from input"),
+            BencodingError::KeyNotFound(k) => write!(f, "Key {k} not found in dict"),
+            BencodingError::NotDict => write!(f, "Input or Expected value not dictionary"),
+            BencodingError::NotList => write!(f, "Expected value not list"),
+            BencodingError::NotInt => write!(f, "Expected value not int"),
+            BencodingError::NotByteStr => write!(f, "Expected value not byte string"),
+            BencodingError::NotTextStr => write!(f, "Expected value not text string"),
         }
     }
 }
@@ -169,6 +181,106 @@ impl BTypes {
         };
 
         output
+    }
+
+    pub fn expect_dict(self) -> Result<DictInner, BencodingError> {
+        let BTypes::Dict(d) = self else {
+            return Err(BencodingError::NotDict);
+        };
+
+        Ok(d)
+    }
+
+    pub fn expect_list(self) -> Result<Vec<BTypes>, BencodingError> {
+        let BTypes::List(l) = self else {
+            return Err(BencodingError::NotList);
+        };
+
+        Ok(l)
+    }
+
+    pub fn expect_text_str(self) -> Result<String, BencodingError> {
+        let BTypes::TextString(t) = self else {
+            return Err(BencodingError::NotTextStr);
+        };
+
+        Ok(t)
+    }
+
+    pub fn expect_byte_str(self) -> Result<Vec<u8>, BencodingError> {
+        let BTypes::ByteString(b) = self else {
+            return Err(BencodingError::NotByteStr);
+        };
+
+        Ok(b)
+    }
+
+    pub fn expect_int(self) -> Result<isize, BencodingError> {
+        let BTypes::Integer(i) = self else {
+            return Err(BencodingError::NotInt);
+        };
+
+        Ok(i)
+    }
+
+    pub fn keyed_dict(self, key: &str) -> Result<(DictInner, BTypes), BencodingError> {
+        let mut d = self.expect_dict()?;
+
+        let Some(value) = d.remove(key) else {
+            return Err(BencodingError::KeyNotFound(key.to_owned()));
+        };
+
+        let value = value.expect_dict()?;
+
+        Ok((value, BTypes::Dict(d)))
+    }
+
+    pub fn keyed_list(self, key: &str) -> Result<(Vec<BTypes>, BTypes), BencodingError> {
+        let mut d = self.expect_dict()?;
+
+        let Some(value) = d.remove(key) else {
+            return Err(BencodingError::KeyNotFound(key.to_owned()));
+        };
+
+        let value = value.expect_list()?;
+
+        Ok((value, BTypes::Dict(d)))
+    }
+
+    pub fn keyed_text_str(self, key: &str) -> Result<(String, BTypes), BencodingError> {
+        let mut d = self.expect_dict()?;
+
+        let Some(value) = d.remove(key) else {
+            return Err(BencodingError::KeyNotFound(key.to_owned()));
+        };
+
+        let value = value.expect_text_str()?;
+
+        Ok((value, BTypes::Dict(d)))
+    }
+
+    pub fn keyed_byte_str(self, key: &str) -> Result<(Vec<u8>, BTypes), BencodingError> {
+        let mut d = self.expect_dict()?;
+
+        let Some(value) = d.remove(key) else {
+            return Err(BencodingError::KeyNotFound(key.to_owned()));
+        };
+
+        let value = value.expect_byte_str()?;
+
+        Ok((value, BTypes::Dict(d)))
+    }
+
+    pub fn keyed_int(self, key: &str) -> Result<(isize, BTypes), BencodingError> {
+        let mut d = self.expect_dict()?;
+
+        let Some(value) = d.remove(key) else {
+            return Err(BencodingError::KeyNotFound(key.to_owned()));
+        };
+
+        let value = value.expect_int()?;
+
+        Ok((value, BTypes::Dict(d)))
     }
 }
 
