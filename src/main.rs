@@ -1,13 +1,14 @@
-pub mod encoding;
-use encoding::{
-    BTypes::{self, ByteString, Dict, Integer, List, TextString},
-    BencodingError,
-};
+mod encoding;
 mod metainfo;
-use metainfo::*;
 mod network;
-use network::*;
 mod tracker;
+
+use encoding::{
+    errors::BencodingError,
+    types::BTypes::{self, ByteString, Dict, Integer, List, TextString},
+};
+use metainfo::*;
+use network::*;
 use std::fs::File;
 use std::io::prelude::*;
 use tokio::{
