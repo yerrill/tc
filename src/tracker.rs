@@ -43,13 +43,16 @@ pub async fn tracker_get(
     downloaded: usize,
     left: usize,
     event: TrackerEvent,
-) -> Result<(), ()> {
+) -> [u8; 20] {
     let info_hash = percent_encode(meta.info_hash().as_slice(), NON_ALPHANUMERIC).to_string();
 
-    println!("{}", info_hash);
-
+    let peer_id_bytes = generate_peer_id();
     // Generate random ID and return with response, shouldn't need to be percent encoded with current generation method
-    let peer_id = percent_encode(generate_peer_id().as_bytes(), NON_ALPHANUMERIC).to_string();
+    // let peer_id = percent_encode(peer_id_bytes.as_slice(), NON_ALPHANUMERIC).to_string();
+    let peer_id = "abcdefghijklmnopqrst";
+
+    println!("Peer id: {:?}", &peer_id);
+    println!("Peer id bytes: {:?}", &peer_id_bytes);
 
     let query_string = format!(
         "info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}&event={}",
@@ -74,18 +77,18 @@ pub async fn tracker_get(
     println!("{:?}", response);
     println!("{:?}", response.text().await);
 
-    Ok(())
+    peer_id_bytes
 }
 
-pub fn generate_peer_id() -> String {
-    let mut chars = ['A'; 20];
+pub fn generate_peer_id() -> [u8; 20] {
+    let mut chars = ['A' as u8; 20];
     let mut rng = rand::rng();
 
     for ch in 0..chars.len() {
-        chars[ch] = rng.sample(rand::distr::Alphanumeric) as char;
+        chars[ch] = rng.sample(rand::distr::Alphanumeric) as u8;
     }
 
-    chars.iter().collect()
+    chars
 }
 
 fn decode_response(response: String) -> Result<(), BencodingError> {
