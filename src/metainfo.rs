@@ -1,10 +1,10 @@
-use crate::encoding::types::{BTypes::*, *};
+use crate::encoding::types::{BEncoding::*, *};
 use sha1::{Digest, Sha1};
 use std::collections::BTreeMap;
 
 pub trait Bencodeable {
-    fn bencode(self) -> BTypes;
-    fn bdecode(input: BTypes) -> Result<Self, DataParseError>
+    fn bencode(self) -> BEncoding;
+    fn bdecode(input: BEncoding) -> Result<Self, DataParseError>
     where
         Self: Sized;
 }
@@ -15,8 +15,8 @@ pub enum DataParseError {
     ExpectedInteger,
     ExpectedList,
     ExpectedTextString,
-    BadKey(String, Option<BTypes>),
-    BadKeyPair(String, Option<BTypes>, String, Option<BTypes>),
+    BadKey(String, Option<BEncoding>),
+    BadKeyPair(String, Option<BEncoding>, String, Option<BEncoding>),
     BadPieceLength(isize),
 }
 
@@ -55,7 +55,7 @@ pub struct Meta {
     pub info: MetaInfo,
 
     /// Any unofficial leftover keys that might be needed for a hash but not functionality
-    pub leftovers: BTreeMap<String, BTypes>,
+    pub leftovers: BTreeMap<String, BEncoding>,
 }
 
 impl Meta {
@@ -69,9 +69,9 @@ impl Meta {
 }
 
 impl Bencodeable for Meta {
-    fn bencode(self) -> BTypes {
-        return BTypes::Dict({
-            let mut dict: BTreeMap<String, BTypes> = BTreeMap::new();
+    fn bencode(self) -> BEncoding {
+        return BEncoding::Dict({
+            let mut dict: BTreeMap<String, BEncoding> = BTreeMap::new();
 
             dict.insert("announce".to_owned(), TextString(self.announce));
 
@@ -83,15 +83,15 @@ impl Bencodeable for Meta {
         });
     }
 
-    fn bdecode(input: BTypes) -> Result<Self, DataParseError>
+    fn bdecode(input: BEncoding) -> Result<Self, DataParseError>
     where
         Self: Sized,
     {
-        let BTypes::Dict(mut dict) = input else {
+        let BEncoding::Dict(mut dict) = input else {
             return Err(DataParseError::ExpectedDict);
         };
 
-        let Some(BTypes::TextString(announce)) = dict.remove("announce") else {
+        let Some(BEncoding::TextString(announce)) = dict.remove("announce") else {
             return Err(DataParseError::BadKey(
                 "announce".to_owned(),
                 dict.get("announce").cloned(),
@@ -136,12 +136,12 @@ pub struct MetaInfo {
     pub files: DownloadTypes,
 
     /// Any unofficial leftover keys that might be needed for a hash but not functionality
-    pub leftovers: BTreeMap<String, BTypes>,
+    pub leftovers: BTreeMap<String, BEncoding>,
 }
 
 impl Bencodeable for MetaInfo {
-    fn bencode(self) -> BTypes {
-        BTypes::Dict({
+    fn bencode(self) -> BEncoding {
+        BEncoding::Dict({
             let mut dict = BTreeMap::new();
 
             dict.insert("name".to_owned(), TextString(self.name));
@@ -168,22 +168,22 @@ impl Bencodeable for MetaInfo {
         })
     }
 
-    fn bdecode(input: BTypes) -> Result<Self, DataParseError>
+    fn bdecode(input: BEncoding) -> Result<Self, DataParseError>
     where
         Self: Sized,
     {
-        let BTypes::Dict(mut dict) = input else {
+        let BEncoding::Dict(mut dict) = input else {
             return Err(DataParseError::ExpectedDict);
         };
 
-        let Some(BTypes::TextString(name)) = dict.remove("name") else {
+        let Some(BEncoding::TextString(name)) = dict.remove("name") else {
             return Err(DataParseError::BadKey(
                 "info.name".to_owned(),
                 dict.get("name").cloned(),
             ));
         };
 
-        let Some(BTypes::Integer(piece_length)) = dict.remove("piece length") else {
+        let Some(BEncoding::Integer(piece_length)) = dict.remove("piece length") else {
             return Err(DataParseError::BadKey(
                 "info.piece length".to_owned(),
                 dict.get("piece length").cloned(),
@@ -198,16 +198,16 @@ impl Bencodeable for MetaInfo {
         //    return Err(DataParseError::BadPieceLength(piece_length));
         //}
 
-        let Some(BTypes::ByteString(pieces)) = dict.remove("pieces") else {
+        let Some(BEncoding::ByteString(pieces)) = dict.remove("pieces") else {
             return Err(DataParseError::BadKey(
                 "info.pieces".to_owned(),
                 dict.get("pieces").cloned(),
             ));
         };
 
-        let (files, leftover_info) = DownloadTypes::dbencode(BTypes::Dict(dict))?;
+        let (files, leftover_info) = DownloadTypes::dbencode(BEncoding::Dict(dict))?;
 
-        let BTypes::Dict(leftovers) = leftover_info else {
+        let BEncoding::Dict(leftovers) = leftover_info else {
             return Err(DataParseError::ExpectedDict);
         };
 
@@ -236,21 +236,21 @@ pub enum DownloadTypes {
 }
 
 impl DownloadTypes {
-    fn bencode(self) -> BTypes {
+    fn bencode(self) -> BEncoding {
         match self {
-            Self::Single { length } => BTypes::Integer(length as isize),
+            Self::Single { length } => BEncoding::Integer(length as isize),
             Self::Multiple { files } => {
-                BTypes::List(files.iter().map(|v| v.clone().bencode()).collect())
+                BEncoding::List(files.iter().map(|v| v.clone().bencode()).collect())
             }
         }
     }
 
-    fn dbencode(input: BTypes) -> Result<(Self, BTypes), DataParseError>
+    fn dbencode(input: BEncoding) -> Result<(Self, BEncoding), DataParseError>
     // IMPROVEMENT: Convert some of these to type aliases
     where
         Self: Sized,
     {
-        let BTypes::Dict(mut info) = input else {
+        let BEncoding::Dict(mut info) = input else {
             return Err(DataParseError::ExpectedDict);
         };
 
@@ -265,7 +265,7 @@ impl DownloadTypes {
                 ));
             }
             (None, Some(f)) => {
-                let BTypes::List(list) = f else {
+                let BEncoding::List(list) = f else {
                     return Err(DataParseError::ExpectedList);
                 };
 
@@ -278,7 +278,7 @@ impl DownloadTypes {
                 Self::Multiple { files: file_list }
             }
             (Some(l), None) => {
-                let BTypes::Integer(i) = l else {
+                let BEncoding::Integer(i) = l else {
                     return Err(DataParseError::ExpectedInteger);
                 };
                 Self::Single { length: i as usize }
@@ -293,7 +293,7 @@ impl DownloadTypes {
             }
         };
 
-        Ok((download_type, BTypes::Dict(info)))
+        Ok((download_type, BEncoding::Dict(info)))
     }
 }
 
@@ -308,16 +308,19 @@ pub struct MultipleFileInner {
 }
 
 impl MultipleFileInner {
-    fn bencode(self) -> BTypes {
-        BTypes::Dict({
+    fn bencode(self) -> BEncoding {
+        BEncoding::Dict({
             let mut map = BTreeMap::new();
-            map.insert("length".to_owned(), BTypes::Integer(self.length as isize));
+            map.insert(
+                "length".to_owned(),
+                BEncoding::Integer(self.length as isize),
+            );
             map.insert(
                 "path".to_owned(),
-                BTypes::List(
+                BEncoding::List(
                     self.path
                         .iter()
-                        .map(|s| BTypes::TextString(s.to_owned()))
+                        .map(|s| BEncoding::TextString(s.to_owned()))
                         .collect(),
                 ),
             );
@@ -325,15 +328,15 @@ impl MultipleFileInner {
         })
     }
 
-    fn dbencode(input: BTypes) -> Result<Self, DataParseError>
+    fn dbencode(input: BEncoding) -> Result<Self, DataParseError>
     where
         Self: Sized,
     {
-        let BTypes::Dict(mut info) = input else {
+        let BEncoding::Dict(mut info) = input else {
             return Err(DataParseError::ExpectedDict);
         };
 
-        let Some(BTypes::Integer(length)) = info.remove("length") else {
+        let Some(BEncoding::Integer(length)) = info.remove("length") else {
             return Err(DataParseError::BadKey(
                 "length".to_owned(),
                 info.get("length").cloned(),
@@ -343,7 +346,7 @@ impl MultipleFileInner {
         let path = {
             let mut path = Vec::new();
 
-            let Some(BTypes::List(path_list)) = info.remove("path") else {
+            let Some(BEncoding::List(path_list)) = info.remove("path") else {
                 return Err(DataParseError::BadKey(
                     "path".to_owned(),
                     info.get("path").cloned(),
@@ -351,7 +354,7 @@ impl MultipleFileInner {
             };
 
             for item in path_list {
-                let BTypes::TextString(segment) = item else {
+                let BEncoding::TextString(segment) = item else {
                     return Err(DataParseError::ExpectedTextString);
                 };
 

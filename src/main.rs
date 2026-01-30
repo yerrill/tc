@@ -3,7 +3,7 @@ mod metainfo;
 mod network;
 mod tracker;
 
-use encoding::types::BTypes;
+use encoding::types::BEncoding;
 use metainfo::*;
 use network::*;
 use std::fs::File;
@@ -61,7 +61,7 @@ async fn main() {
     let mut file = File::open("src\\test.torrent").unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents).unwrap();
-    let info = Meta::bdecode(BTypes::bdecode(&contents).unwrap()).unwrap();
+    let info = Meta::bdecode(BEncoding::bdecode(&contents).unwrap()).unwrap();
 
     const HEADER: &'static [u8] = "\x13BitTorrent protocol".as_bytes();
 

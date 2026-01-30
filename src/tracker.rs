@@ -1,4 +1,4 @@
-use crate::encoding::{errors::BencodingError, types::BTypes};
+use crate::encoding::{errors::BencodingError, types::BEncoding};
 use crate::metainfo::*;
 use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 use rand::{self, Rng};
@@ -92,7 +92,7 @@ pub fn generate_peer_id() -> [u8; 20] {
 }
 
 fn decode_response(response: String) -> Result<(), BencodingError> {
-    let res = BTypes::bdecode(&response.into_bytes())?;
+    let res = BEncoding::bdecode(&response.into_bytes())?;
 
     let (peers, res) = res.keyed_dict("peers")?;
 

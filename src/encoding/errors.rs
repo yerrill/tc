@@ -1,7 +1,7 @@
-use super::types::BTypes;
+use super::types::BEncoding;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BencodingError {
+pub enum BEncodingError {
     // ADD FROM OPTION<CHAR>
     CharacterNotFound(char),
     ParseIntFailure,
@@ -9,7 +9,7 @@ pub enum BencodingError {
     IncorrectStartingCharacter(char),
     Nested(String),
     InvalidType(char),
-    InvalidBType(BTypes),
+    InvalidBType(BEncoding),
     OutOfBounds,
     MissingInputType(Vec<u8>),
     CouldNotParseUTF8,
@@ -21,36 +21,49 @@ pub enum BencodingError {
     NotTextStr,
 }
 
-impl std::fmt::Display for BencodingError {
+impl std::fmt::Display for BEncodingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BencodingError::CharacterNotFound(c) => {
-                write!(f, "BencodingError::CharacterNotFound {c}")
+            Self::CharacterNotFound(c) => {
+                write!(f, "Encoding Error: CharacterNotFound {c}")
             }
-            BencodingError::ParseIntFailure => write!(f, "BencodingError::ParseIntFailure"),
-            BencodingError::MalformedString(s) => write!(f, "BencodingError::MalformedString {s}"),
-            BencodingError::IncorrectStartingCharacter(c) => {
-                write!(f, "BencodingError::IncorrectStartingChar {c}")
+            Self::ParseIntFailure => write!(f, "Encoding Error: ParseIntFailure"),
+            Self::MalformedString(s) => write!(f, "Encoding Error: MalformedString {s}"),
+            Self::IncorrectStartingCharacter(c) => {
+                write!(f, "Encoding Error: IncorrectStartingChar {c}")
             }
-            BencodingError::Nested(s) => write!(f, "BencodingError::Nested {s}"),
-            BencodingError::InvalidType(c) => write!(f, "BencodingError::InvalidType {c}"),
-            BencodingError::OutOfBounds => write!(f, "BencodingError::OutOfBounds"),
-            BencodingError::InvalidBType(b) => write!(f, "BencodingError::InvalidBType {b:?}"),
-            BencodingError::MissingInputType(v) => {
-                write!(f, "Decoding input had no type character {v:?}")
+            Self::Nested(s) => write!(f, "Encoding Error: Nested {s}"),
+            Self::InvalidType(c) => write!(f, "Encoding Error: InvalidType {c}"),
+            Self::OutOfBounds => write!(f, "Encoding Error: OutOfBounds"),
+            Self::InvalidBType(b) => write!(f, "Encoding Error: InvalidBType {b:?}"),
+            Self::MissingInputType(v) => {
+                write!(
+                    f,
+                    "Encoding Error: Decoding input had no type character {v:?}"
+                )
             }
-            BencodingError::CouldNotParseUTF8 => write!(f, "Could not parse UTF8 from input"),
-            BencodingError::KeyNotFound(k) => write!(f, "Key {k} not found in dict"),
-            BencodingError::NotDict => write!(f, "Input or Expected value not dictionary"),
-            BencodingError::NotList => write!(f, "Expected value not list"),
-            BencodingError::NotInt => write!(f, "Expected value not int"),
-            BencodingError::NotByteStr => write!(f, "Expected value not byte string"),
-            BencodingError::NotTextStr => write!(f, "Expected value not text string"),
+            Self::CouldNotParseUTF8 => {
+                write!(f, "Encoding Error: Could not parse UTF8 from input")
+            }
+            Self::KeyNotFound(k) => {
+                write!(f, "Encoding Error: Key {k} not found in dict")
+            }
+            Self::NotDict => {
+                write!(f, "Encoding Error: Expected value not dictionary")
+            }
+            Self::NotList => write!(f, "Encoding Error: Expected value not list"),
+            Self::NotInt => write!(f, "Encoding Error: Expected value not int"),
+            Self::NotByteStr => {
+                write!(f, "Encoding Error: Expected value not byte string")
+            }
+            Self::NotTextStr => {
+                write!(f, "Encoding Error: Expected value not text string")
+            }
         }
     }
 }
 
-impl std::error::Error for BencodingError {
+impl std::error::Error for BEncodingError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         None
     }
