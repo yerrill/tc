@@ -3,10 +3,7 @@ mod metainfo;
 mod network;
 mod tracker;
 
-use encoding::{
-    errors::BencodingError,
-    types::BTypes::{self, ByteString, Dict, Integer, List, TextString},
-};
+use encoding::types::BTypes;
 use metainfo::*;
 use network::*;
 use std::fs::File;
@@ -17,6 +14,14 @@ use tokio::{
 };
 use tracker::*;
 
+struct DownloadManager<'a> {
+    meta: &'a Meta,
+}
+
+impl DownloadManager<'_> {
+    fn tracker_get(&self) {}
+}
+
 async fn connection(info: Meta) {
     let port = 6881;
 
@@ -25,9 +30,7 @@ async fn connection(info: Meta) {
     // let listener = TcpListener::bind("0.0.0.0:6881").await.unwrap();
     let listener = TcpListener::bind("0.0.0.0:6881").await.unwrap();
 
-    let mut counter = 0;
-
-    while counter < 5 {
+    for _ in 0..5 {
         let (mut socket, addr) = listener.accept().await.unwrap();
         let mut buffer = Vec::new();
         let _ = socket.read_to_end(&mut buffer).await.unwrap();
@@ -48,8 +51,6 @@ async fn connection(info: Meta) {
         } else {
             dbg!("oof");
         }
-
-        counter += 1;
     }
 
     let end = tracker_get(&info, port, 0, 0, 16384, TrackerEvent::Stopped).await;
