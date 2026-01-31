@@ -1,13 +1,6 @@
-use crate::encoding::collection::{BEncoding::*, *};
+use crate::encoding::{BDict, BEncoding};
 use sha1::{Digest, Sha1};
 use std::collections::BTreeMap;
-
-pub trait Bencodeable {
-    fn bencode(self) -> BEncoding;
-    fn bdecode(input: BEncoding) -> Result<Self, DataParseError>
-    where
-        Self: Sized;
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataParseError {
@@ -55,7 +48,7 @@ pub struct Meta {
     pub info: MetaInfo,
 
     /// Any unofficial leftover keys that might be needed for a hash but not functionality
-    pub leftovers: BTreeMap<String, BEncoding>,
+    pub leftovers: BDict,
 }
 
 impl Meta {
@@ -63,13 +56,11 @@ impl Meta {
         let mut hasher = Sha1::new();
         let info = self.info.clone();
 
-        hasher.update(info.bencode().bencode());
+        hasher.update(info.serialize().bencode());
         hasher.finalize().into()
     }
-}
 
-impl Bencodeable for Meta {
-    fn bencode(self) -> BEncoding {
+    fn serialize(self) -> BEncoding {
         return BEncoding::Dict({
             let mut dict: BTreeMap<String, BEncoding> = BTreeMap::new();
 
@@ -136,7 +127,7 @@ pub struct MetaInfo {
     pub files: DownloadTypes,
 
     /// Any unofficial leftover keys that might be needed for a hash but not functionality
-    pub leftovers: BTreeMap<String, BEncoding>,
+    pub leftovers: BDict,
 }
 
 impl Bencodeable for MetaInfo {

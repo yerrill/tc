@@ -1,7 +1,6 @@
 use crate::encoding::{
     BDict, BEncodeable, BEncodingError, BInteger, BList, BString, DisplayFormat,
 };
-use std::collections::BTreeMap;
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum BEncoding {
@@ -87,110 +86,5 @@ impl BEncodeable for BEncoding {
         };
 
         Ok(pair)
-    }
-}
-
-impl BEncoding {
-    pub fn expect_dict(self) -> Result<BTreeMap<String, BEncoding>, BEncodingError> {
-        let BEncoding::Dict(d) = self else {
-            return Err(BEncodingError::NotDict);
-        };
-
-        Ok(d)
-    }
-
-    pub fn expect_list(self) -> Result<Vec<BEncoding>, BEncodingError> {
-        let BEncoding::List(l) = self else {
-            return Err(BEncodingError::NotList);
-        };
-
-        Ok(l)
-    }
-
-    pub fn expect_text_str(self) -> Result<String, BEncodingError> {
-        let BEncoding::TextString(t) = self else {
-            return Err(BEncodingError::NotTextStr);
-        };
-
-        Ok(t)
-    }
-
-    pub fn expect_byte_str(self) -> Result<Vec<u8>, BEncodingError> {
-        let BEncoding::ByteString(b) = self else {
-            return Err(BEncodingError::NotByteStr);
-        };
-
-        Ok(b)
-    }
-
-    pub fn expect_int(self) -> Result<isize, BEncodingError> {
-        let BEncoding::Integer(i) = self else {
-            return Err(BEncodingError::NotInt);
-        };
-
-        Ok(i)
-    }
-
-    pub fn keyed_dict(
-        self,
-        key: &str,
-    ) -> Result<(BTreeMap<String, BEncoding>, BEncoding), BEncodingError> {
-        let mut d = self.expect_dict()?;
-
-        let Some(value) = d.remove(key) else {
-            return Err(BEncodingError::KeyNotFound(key.to_owned()));
-        };
-
-        let value = value.expect_dict()?;
-
-        Ok((value, BEncoding::Dict(d)))
-    }
-
-    pub fn keyed_list(self, key: &str) -> Result<(Vec<BEncoding>, BEncoding), BEncodingError> {
-        let mut d = self.expect_dict()?;
-
-        let Some(value) = d.remove(key) else {
-            return Err(BEncodingError::KeyNotFound(key.to_owned()));
-        };
-
-        let value = value.expect_list()?;
-
-        Ok((value, BEncoding::Dict(d)))
-    }
-
-    pub fn keyed_text_str(self, key: &str) -> Result<(String, BEncoding), BEncodingError> {
-        let mut d = self.expect_dict()?;
-
-        let Some(value) = d.remove(key) else {
-            return Err(BEncodingError::KeyNotFound(key.to_owned()));
-        };
-
-        let value = value.expect_text_str()?;
-
-        Ok((value, BEncoding::Dict(d)))
-    }
-
-    pub fn keyed_byte_str(self, key: &str) -> Result<(Vec<u8>, BEncoding), BEncodingError> {
-        let mut d = self.expect_dict()?;
-
-        let Some(value) = d.remove(key) else {
-            return Err(BEncodingError::KeyNotFound(key.to_owned()));
-        };
-
-        let value = value.expect_byte_str()?;
-
-        Ok((value, BEncoding::Dict(d)))
-    }
-
-    pub fn keyed_int(self, key: &str) -> Result<(isize, BEncoding), BEncodingError> {
-        let mut d = self.expect_dict()?;
-
-        let Some(value) = d.remove(key) else {
-            return Err(BEncodingError::KeyNotFound(key.to_owned()));
-        };
-
-        let value = value.expect_int()?;
-
-        Ok((value, BEncoding::Dict(d)))
     }
 }
