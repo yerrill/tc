@@ -1,4 +1,4 @@
-use super::BEncodingError;
+use crate::encoding::BEncodingError;
 
 pub const BTYPE_PRINT_MAX_ITEMS: usize = 100;
 
@@ -17,4 +17,12 @@ pub fn split_on_delimiter(input: &[u8], target_char: u8) -> Result<(&[u8], &[u8]
     }
 
     Err(BEncodingError::CharacterNotFound(target_char as char))
+}
+
+pub fn check_leader(input: &[u8], leader: u8) -> Result<bool, BEncodingError> {
+    let Some(first_char) = input.get(0) else {
+        return Err(BEncodingError::OutOfBounds);
+    };
+
+    Ok(*first_char == leader)
 }

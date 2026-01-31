@@ -1,10 +1,12 @@
-use super::{
-    BEncodeable, BEncodingError, DisplayFormat, common::BTYPE_PRINT_MAX_ITEMS, types::BEncoding,
+use crate::encoding::{
+    BEncodeable, BEncodingError, DisplayFormat,
+    collection::BEncoding,
+    common::{BTYPE_PRINT_MAX_ITEMS, check_leader},
 };
 use std::cmp::min;
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct BList(Vec<BEncoding>);
+pub struct BList(pub Vec<BEncoding>);
 
 impl std::fmt::Display for BList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -75,18 +77,9 @@ impl BEncodeable for BList {
     }
 }
 
-fn check_leader(input: &[u8], leader: u8) -> Result<bool, BEncodingError> {
-    let Some(first_char) = input.get(0) else {
-        return Err(BEncodingError::OutOfBounds);
-    };
-
-    Ok(*first_char == leader)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::super::BInteger;
-    use super::{BEncoding, BList};
+    use crate::encoding::{BEncodeable, BEncoding, BInteger, BList, BString};
 
     #[test]
     fn list() {
@@ -101,19 +94,19 @@ mod tests {
                 "li-1ei10ei12ei-20ee",
             ),
             (
-                List(vec![
-                    TextString(String::from("eggs")),
-                    TextString(String::from("bacon")),
-                    TextString(String::from("ham")),
-                    TextString(String::from("coffee")),
+                BList(vec![
+                    BEncoding::String(BString::TextString(String::from("eggs"))),
+                    BEncoding::String(BString::TextString(String::from("bacon"))),
+                    BEncoding::String(BString::TextString(String::from("ham"))),
+                    BEncoding::String(BString::TextString(String::from("coffee"))),
                 ]),
                 "l4:eggs5:bacon3:ham6:coffeee",
             ),
             (
-                List(vec![
-                    Integer(-1),
-                    TextString(String::from("eggs")),
-                    Integer(-20),
+                BList(vec![
+                    BEncoding::Integer(BInteger(-1)),
+                    BEncoding::String(BString::TextString(String::from("eggs"))),
+                    BEncoding::Integer(BInteger(-20)),
                 ]),
                 "li-1e4:eggsi-20ee",
             ),
@@ -123,8 +116,10 @@ mod tests {
         for (plain, encoded) in lists {
             assert_eq!(plain.bencode(), encoded.as_bytes().to_owned());
             assert_eq!(
-                BEncoding::bdecode(&encoded.as_bytes().to_owned()),
-                Ok(plain)
+                BEncoding::bdecode(&encoded.as_bytes().to_owned())
+                    .unwrap()
+                    .0,
+                BEncoding::List(plain)
             );
         }
     }

@@ -1,4 +1,4 @@
-use super::{
+use crate::encoding::{
     BEncodeable, BEncodingError, DisplayFormat,
     common::{BTYPE_PRINT_MAX_ITEMS, split_on_delimiter},
 };
@@ -162,7 +162,7 @@ fn next_char(input: &[u8]) -> Option<(char, &[u8])> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BEncodeable, BString};
+    use crate::encoding::{BEncodeable, BString};
 
     #[test]
     fn string() {

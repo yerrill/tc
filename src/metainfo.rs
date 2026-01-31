@@ -1,4 +1,4 @@
-use crate::encoding::types::{BEncoding::*, *};
+use crate::encoding::collection::{BEncoding::*, *};
 use sha1::{Digest, Sha1};
 use std::collections::BTreeMap;
 

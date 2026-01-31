@@ -1,4 +1,4 @@
-use crate::encoding::{errors::BencodingError, types::BEncoding};
+use crate::encoding::{collection::BEncoding, errors::BencodingError};
 use crate::metainfo::*;
 use percent_encoding::{NON_ALPHANUMERIC, percent_encode};
 use rand::{self, Rng};

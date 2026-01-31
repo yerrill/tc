@@ -1,4 +1,4 @@
-use super::{BEncodeable, BEncodingError, DisplayFormat, common::split_on_delimiter};
+use crate::encoding::{BEncodeable, BEncodingError, DisplayFormat, common::split_on_delimiter};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct BInteger(pub isize);
@@ -68,7 +68,7 @@ impl BEncodeable for BInteger {
 
 #[cfg(test)]
 mod tests {
-    use super::{BEncodeable, BInteger};
+    use crate::encoding::{BEncodeable, BInteger};
 
     #[test]
     fn btype_integer() {

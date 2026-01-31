@@ -3,7 +3,7 @@ mod metainfo;
 mod network;
 mod tracker;
 
-use encoding::types::BEncoding;
+use encoding::BEncoding;
 use metainfo::*;
 use network::*;
 use std::fs::File;

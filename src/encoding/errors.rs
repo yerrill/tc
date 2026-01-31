@@ -1,4 +1,4 @@
-use super::types::BEncoding;
+use crate::encoding::collection::BEncoding;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BEncodingError {
